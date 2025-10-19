@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <title>Password Excode</title>
+
+  <!-- prevent any caching -->
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <style>
+    body {
+      font-family: monospace;
+      background: #111;
+      color: #eee;
+      padding: 20px;
+    }
+    label { display: block; margin-top: 10px; }
+    input {
+      width: 300px;
+      padding: 5px;
+      margin-top: 5px;
+      display: block;
+    }
+    button {
+      margin-top: 15px;
+      padding: 8px 15px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background: #333;
+      color: #eee;
+      transition: background 0.2s;
+    }
+    button:hover { background: #444; }
+    pre {
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+    .output-line { display: flex; }
+    .line-number {
+      color: #888;
+      user-select: none;
+      width: 3em;
+      text-align: right;
+      margin-right: 10px;
+    }
+    .encoded-text {
+      white-space: pre-wrap;
+      word-break: break-all;
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <h2>Password Excode</h2>
+  
+  <label>Key:</label>
+  <input type="text" id="text">
+
+  <label>Times:</label>
+  <input type="number" id="times" min="1" value="1" placeholder="Example: 10">
+
+  <label>Width:</label>
+  <input type="number" id="width" min="1" value="80" placeholder="Example: 80">
+
+  <label>Row (Optional):</label>
+  <input type="number" id="line" min="1" placeholder="Example: 3">
+
+  <button onclick="encodeBase85()">Encode</button>
+  <button id="copyButton" onclick="copyOutput()">Copy result</button>
+
+  <h3>Code:</h3>
+  <pre id="output"></pre>
+
+  <script>
+    // Clear any cached or stored data when the page loads
+    window.addEventListener("load", () => {
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+        caches?.keys?.().then(keys => keys.forEach(k => caches.delete(k)));
+      } catch (e) {}
+      document.querySelectorAll("input").forEach(inp => inp.value = "");
+      document.getElementById("output").textContent = "";
+    });
+
+    // RFC1924 / Z85 character set (same as Python's base64.b85encode)
+    const Z85_CHARS = 
+      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";
+
+    function z85Encode(bytes) {
+      let remainder = bytes.length % 4;
+      if (remainder !== 0) {
+        let padding = 4 - remainder;
+        let tmp = new Uint8Array(bytes.length + padding);
+        tmp.set(bytes);
+        bytes = tmp;
+      }
+      let result = "";
+      for (let i = 0; i < bytes.length; i += 4) {
+        let value = 
+          (bytes[i] << 24) >>> 0 |
+          (bytes[i+1] << 16) |
+          (bytes[i+2] << 8) |
+          (bytes[i+3]);
+        let encoded = "";
+        for (let j = 0; j < 5; j++) {
+          encoded = Z85_CHARS[value % 85] + encoded;
+          value = Math.floor(value / 85);
+        }
+        result += encoded;
+      }
+      if (remainder !== 0) {
+        result = result.slice(0, result.length - (4 - remainder));
+      }
+      return result;
+    }
+
+    function multipleBase85Encode(text, times) {
+      let encoded = new TextEncoder().encode(text);
+      for (let i = 0; i < times; i++) {
+        let str = z85Encode(encoded);
+        encoded = new TextEncoder().encode(str);
+      }
+      return new TextDecoder().decode(encoded);
+    }
+
+    function splitIntoLines(text, width) {
+      let lines = [];
+      for (let i = 0; i < text.length; i += width) {
+        lines.push(text.slice(i, i + width));
+      }
+      return lines;
+    }
+
+    function encodeBase85() {
+      let text = document.getElementById("text").value;
+      let times = parseInt(document.getElementById("times").value);
+      let width = parseInt(document.getElementById("width").value);
+      let line = document.getElementById("line").value;
+      let output = document.getElementById("output");
+
+      if (!text) {
+        output.textContent = "❗ Please enter text!";
+        return;
+      }
+      if (times < 1) {
+        output.textContent = "❗ Encoding times must be at least 1.";
+        return;
+      }
+
+      let result = multipleBase85Encode(text, times);
+      let lines = splitIntoLines(result, width);
+      output.innerHTML = "";
+
+      if (line) {
+        let n = parseInt(line);
+        if (n >= 1 && n <= lines.length) {
+          const div = document.createElement("div");
+          div.className = "output-line";
+          const num = document.createElement("span");
+          num.className = "line-number";
+          num.textContent = n.toString().padStart(3, " ") + ":";
+          const txt = document.createElement("span");
+          txt.className = "encoded-text";
+          txt.textContent = lines[n - 1];
+          div.appendChild(num);
+          div.appendChild(txt);
+          output.appendChild(div);
+        } else {
+          output.textContent = `❗ Text has only ${lines.length} lines.`;
+        }
+      } else {
+        lines.forEach((ln, i) => {
+          const div = document.createElement("div");
+          div.className = "output-line";
+          const num = document.createElement("span");
+          num.className = "line-number";
+          num.textContent = (i + 1).toString().padStart(3, " ") + ":";
+          const txt = document.createElement("span");
+          txt.className = "encoded-text";
+          txt.textContent = ln;
+          div.appendChild(num);
+          div.appendChild(txt);
+          output.appendChild(div);
+        });
+      }
+    }
+
+    function copyOutput() {
+      const copyBtn = document.getElementById("copyButton");
+      let encodedParts = Array.from(document.querySelectorAll(".encoded-text"))
+        .map(span => span.textContent)
+        .join("\n");
+
+      if (!encodedParts.trim()) {
+        copyBtn.textContent = "Nothing to copy";
+        setTimeout(() => copyBtn.textContent = "Copy result", 2000);
+        return;
+      }
+
+      navigator.clipboard.writeText(encodedParts).then(() => {
+        const original = copyBtn.textContent;
+        copyBtn.textContent = "Copied ✓";
+        copyBtn.style.background = "#2e7d32";
+        setTimeout(() => {
+          copyBtn.textContent = original;
+          copyBtn.style.background = "#333";
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
