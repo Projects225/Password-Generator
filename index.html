@@ -2,7 +2,7 @@
 <html lang="sk">
 <head>
   <meta charset="UTF-8">
-  <title>Base85 Encoder (RFC1924 / Z85)</title>
+  <title>Password Excode</title>
   <style>
     body { font-family: monospace; background: #111; color: #eee; padding: 20px; }
     label { display: block; margin-top: 10px; }
@@ -12,23 +12,23 @@
   </style>
 </head>
 <body>
-  <h2>Base85 Encoder (Python kompatibilný)</h2>
+  <h2>Password Excode</h2>
   
-  <label>Text na zakódovanie:</label>
+  <label>Key:</label>
   <input type="text" id="text">
 
-  <label>Koľkokrát zakódovať (Base85):</label>
+  <label>Times:</label>
   <input type="number" id="times" min="1" value="1">
 
-  <label>Koľko písmen v riadku:</label>
+  <label>Width:</label>
   <input type="number" id="width" min="1" value="80">
 
-  <label>Číslo riadku (nepovinné):</label>
+  <label>Row (Optional):</label>
   <input type="number" id="line" min="1">
 
   <button onclick="encodeBase85()">Zakóduj</button>
 
-  <h3>Výsledok:</h3>
+  <h3>Code:</h3>
   <pre id="output"></pre>
 
   <script>
@@ -118,3 +118,4 @@
   </script>
 </body>
 </html>
+
